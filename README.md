@@ -1,52 +1,44 @@
 # EGE GFM 2027 — application indépendante
 
-Assistant pédagogique pour les Études de Gestion Encadrées, session 2027 à Djibouti.
-Ce dépôt est distinct de `janagaleh.com` et de `Mon Bac`.
+Application pédagogique autonome du site janagaleh.com, avec son propre dépôt GitHub et son Worker Cloudflare.
 
-## État des connexions — 11 novembre 2026
+## Backend retenu : Supabase mon-bac EXISTANT
 
-- **GitHub** : dépôt créé, application et fichiers de configuration transférés et vérifiés.
-- **Cloudflare** : Worker `ege-gfm-2027` créé et sous-domaine `workers.dev` activé ; liaison automatique GitHub → Cloudflare encore à autoriser.
-- **Supabase** : schéma préparé dans `supabase/schema.sql`, mais **aucun nouveau projet créé et aucun SQL exécuté**.
-- **Administration à distance** : non active. Ne pas publier l'ancien panneau local comme portail administrateur sécurisé.
-- **Recherche documentaire** : recherche publique Wikipédia dans l'HTML ; le mode de rédaction IA via API sécurisée n'est pas encore configuré.
+- Référence du projet : `nwcatsmfbkcgvgbanwyl`
+- URL publique Supabase : `https://nwcatsmfbkcgvgbanwyl.supabase.co`
+- Clé dans l'HTML : **clé publiable uniquement**, jamais service_role.
+- Comptes Supabase Auth partagés avec le projet Mon Bac ; les dossiers EGE sont isolés par RLS.
+- Tables nouvelles proposées : `ege2027_staff`, `ege2027_dossiers`, `ege2027_reviews`.
+- **Aucune table Mon Bac existante ne doit être renommée, supprimée ou modifiée.**
 
-## Fichiers
+## État au 11 novembre 2026
 
-- `index.html` : parcours élève autonome (sauvegarde locale et export Word).
-- `scripts/deploy-cloudflare.mjs` : publication manuelle du HTML sur le Worker Cloudflare.
-- `.github/workflows/deployment.yml` : workflow de déploiement **manuel**, nécessite deux secrets GitHub.
-- `supabase/schema.sql` : base EGE isolée et politiques RLS proposées, à contrôler avant usage en production.
-- `.gitignore` : exclusion des fichiers de secrets.
+- GitHub : code et interface Supabase transférés dans `index.html`.
+- Cloudflare : Worker `ege-gfm-2027` déjà créé ; la synchronisation GitHub → Cloudflare n'est pas automatique.
+- Supabase Mon Bac : le projet est administrativement ACTIVE_HEALTHY, **mais les requêtes SQL échouent avec `Connection terminated due to connection timeout`**. L'API health signale également `hibernated`.
+- La tentative de migration a échoué à l'initialisation de son historique. **La création effective des tables n'est donc pas confirmée**.
+- En conséquence, **sauvegarde en ligne, suivi des corrections et administration distante ne sont PAS opérationnels tant que la migration n'est pas appliquée et testée**.
+- La sauvegarde locale JSON, la recherche documentaire publique et l'export Word restent disponibles dans le code existant.
 
-## Connexion Cloudflare – GitHub (recommandé)
+## Fichiers importants
 
-1. Cloudflare → **Workers & Pages** → Worker `ege-gfm-2027`.
-2. **Settings** → **Builds** → **Connect** → **GitHub**.
-3. Autoriser le dépôt `JanaGaleh/ege-gfm-2027`.
-4. Configurer un déploiement adapté au projet ; avant activation automatique, **tester une publication**.
+- `index.html` : interface élève et espace Compte/Administration, prête à utiliser Mon Bac quand le schéma sera opérationnel.
+- `supabase/schema.sql` : migration additive, tables et policies RLS.
+- `scripts/deploy-cloudflare.mjs` : script de publication en ligne, appelé par un workflow GitHub manuel.
+- `.github/workflows/deployment.yml` : GitHub Actions (secrets Cloudflare à fournir si utilisé).
 
-L'alternative est le workflow GitHub Actions. Il faut alors ajouter dans
-GitHub → Settings → Secrets and variables → Actions :
-`CLOUDFLARE_API_TOKEN` (jeton de portée minimale Workers Scripts Write)
-et `CLOUDFLARE_ACCOUNT_ID`, puis lancer le workflow manuellement.
-**Ne pas inscrire ces valeurs dans le dépôt, les issues ou les conversations.**
+## Pour terminer la mise en service
 
-## Supabase (prochaine phase)
-
-Après confirmation de l'organisation Supabase et de l'éventuel coût, créer
-un projet **distinct**. Vérifier ensuite les règles RLS du schéma, relier le
-navigateur via une clé publiable et créer un espace d'administration avec rôle sécurisé.
-**Aucune clé service_role ne doit figurer dans un fichier HTML.**
-
-## Données EGE
-
-- 6 thèmes, 51 sous-thèmes du référentiel officiel.
-- Dossier Word basé sur le modèle de référence.
-- Recherche documentaire à vérifier par le candidat.
-- Aucune donnée de visite, entretien ou entreprise inventée.
+1. Dans [Supabase Dashboard](https://supabase.com/dashboard/project/nwcatsmfbkcgvgbanwyl), vérifier Database Reports / Project Health.
+2. Une fois la base accessible, appliquer et tester `supabase/schema.sql` **dans le projet mon-bac**.
+3. Vérifier les permissions RLS avec deux élèves différents et un enseignant.
+4. Ajouter un enseignant autorisé dans `ege2027_staff` avec son identifiant `auth.users.id` validé ; aucun rôle admin n'est auto-attribué.
+5. Publier et tester l'`index.html` actualisé sur Cloudflare (le Worker actuel a été publié avant la connexion Supabase).
+6. Raccorder ensuite GitHub à Cloudflare, ou configurer les deux secrets du workflow manuel.
 
 ## Sécurité
 
-Ce dépôt a été constaté comme **public** : le rendre privé si le code doit être réservé.
-Les dossiers personnels des élèves ne doivent jamais être committés dans GitHub.
+Le dépôt est actuellement public. La clé Supabase publiable peut être exposée car elle ne donne pas les privilèges d'administration : ce sont les politiques RLS qui protègent les données. **Ne jamais insérer une clé service_role / secret dans le HTML ou dans GitHub.**
+Les données personnelles des élèves ne doivent jamais être committées dans le dépôt.
+
+La première version ne prétend pas effectuer une synchronisation automatique ni une connexion complète tant que l'accès SQL Supabase demeure indisponible.
