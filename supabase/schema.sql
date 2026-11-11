@@ -1,78 +1,52 @@
--- EGE GFM 2027 : à appliquer uniquement dans un NOUVEAU projet Supabase.
--- Créer le projet indépendant AVANT l'exécution de ce schéma.
--- Attribution du rôle ege_role=admin exclusivement par un administrateur sécurisé.
-
-create table if not exists public.ege_profiles (
- id uuid primary key references auth.users(id) on delete cascade,
- nom_complet text not null default '',
- etablissement text not null default '',
- classe text not null default '',
+-- Extension additive pour Supabase mon-bac. Aucune table Mon Bac existante n'est modifiée.
+-- Ne jamais donner au client HTML une clé service_role.
+create table if not exists public.ege2027_staff (
+ user_id uuid primary key references auth.users(id) on delete cascade,
+ role text not null default 'enseignant' check (role in ('enseignant','admin')),
  created_at timestamptz not null default now()
 );
-create table if not exists public.ege_dossiers (
+alter table public.ege2027_staff enable row level security;
+create table if not exists public.ege2027_dossiers (
  id uuid primary key default gen_random_uuid(),
- eleve_id uuid not null references auth.users(id) on delete cascade,
- contenu jsonb not null default '{}'::jsonb,
- statut text not null default 'brouillon' check (statut in ('brouillon','soumis','a_corriger','valide')),
+ owner_id uuid not null unique references auth.users(id) on delete cascade,
+ student text not null default '',
+ payload jsonb not null default '{}'::jsonb,
  created_at timestamptz not null default now(),
  updated_at timestamptz not null default now()
 );
-create index if not exists ege_dossiers_eleve_idx on public.ege_dossiers(eleve_id);
-create table if not exists public.ege_revisions (
+create index if not exists ege2027_dossiers_updated_idx on public.ege2027_dossiers(updated_at desc);
+alter table public.ege2027_dossiers enable row level security;
+create table if not exists public.ege2027_reviews (
  id uuid primary key default gen_random_uuid(),
- dossier_id uuid not null references public.ege_dossiers(id) on delete cascade,
- relecteur_id uuid not null references auth.users(id),
- observations jsonb not null default '{}'::jsonb,
+ dossier_id uuid not null references public.ege2027_dossiers(id) on delete cascade,
+ staff_id uuid not null references auth.users(id),
+ decision text not null check (decision in ('a_corriger','valide')),
+ observation text not null default '',
  created_at timestamptz not null default now()
 );
-create index if not exists ege_revisions_dossier_idx on public.ege_revisions(dossier_id);
-
-alter table public.ege_profiles enable row level security;
-alter table public.ege_dossiers enable row level security;
-alter table public.ege_revisions enable row level security;
-
-drop policy if exists ege_profiles_select on public.ege_profiles;
-create policy ege_profiles_select on public.ege_profiles for select to authenticated
- using (id=(select auth.uid()) or (select auth.jwt() -> 'app_metadata' ->> 'ege_role')='admin');
-drop policy if exists ege_profiles_insert on public.ege_profiles;
-create policy ege_profiles_insert on public.ege_profiles for insert to authenticated
- with check (id=(select auth.uid()));
-drop policy if exists ege_profiles_update on public.ege_profiles;
-create policy ege_profiles_update on public.ege_profiles for update to authenticated
- using (id=(select auth.uid())) with check (id=(select auth.uid()));
-
-drop policy if exists ege_dossiers_select on public.ege_dossiers;
-create policy ege_dossiers_select on public.ege_dossiers for select to authenticated
- using (eleve_id=(select auth.uid()) or (select auth.jwt() -> 'app_metadata' ->> 'ege_role')='admin');
-drop policy if exists ege_dossiers_insert on public.ege_dossiers;
-create policy ege_dossiers_insert on public.ege_dossiers for insert to authenticated
- with check (eleve_id=(select auth.uid()) and statut='brouillon');
-drop policy if exists ege_dossiers_update on public.ege_dossiers;
-create policy ege_dossiers_update on public.ege_dossiers for update to authenticated
- using (
-   (eleve_id=(select auth.uid()) and statut in ('brouillon','a_corriger'))
-   or (select auth.jwt() -> 'app_metadata' ->> 'ege_role')='admin'
- )
- with check (
-   (eleve_id=(select auth.uid()) and statut in ('brouillon','soumis'))
-   or (select auth.jwt() -> 'app_metadata' ->> 'ege_role')='admin'
- );
-
-drop policy if exists ege_revisions_select on public.ege_revisions;
-create policy ege_revisions_select on public.ege_revisions for select to authenticated
- using (
-   (select auth.jwt() -> 'app_metadata' ->> 'ege_role')='admin'
-   or exists(select 1 from public.ege_dossiers d where d.id=dossier_id and d.eleve_id=(select auth.uid()))
- );
-drop policy if exists ege_revisions_insert on public.ege_revisions;
-create policy ege_revisions_insert on public.ege_revisions for insert to authenticated
- with check (
-  (select auth.jwt() -> 'app_metadata' ->> 'ege_role')='admin'
-  and relecteur_id=(select auth.uid())
- );
-revoke all on public.ege_profiles, public.ege_dossiers, public.ege_revisions from anon;
-grant select, insert, update on public.ege_profiles, public.ege_dossiers to authenticated;
-grant select, insert on public.ege_revisions to authenticated;
-
--- Vérifier RLS avec deux comptes élèves et un compte admin avant toute ouverture publique.
--- Ne jamais placer service_role ou une clé secrète dans le fichier HTML.
+create index if not exists ege2027_reviews_dossier_idx on public.ege2027_reviews(dossier_id,created_at desc);
+alter table public.ege2027_reviews enable row level security;
+drop policy if exists ege2027_staff_self_read on public.ege2027_staff;
+create policy ege2027_staff_self_read on public.ege2027_staff for select to authenticated using(user_id=(select auth.uid()));
+drop policy if exists ege2027_dossiers_read on public.ege2027_dossiers;
+create policy ege2027_dossiers_read on public.ege2027_dossiers for select to authenticated
+ using(owner_id=(select auth.uid()) or exists(select 1 from public.ege2027_staff s where s.user_id=(select auth.uid())));
+drop policy if exists ege2027_dossiers_insert on public.ege2027_dossiers;
+create policy ege2027_dossiers_insert on public.ege2027_dossiers for insert to authenticated with check(owner_id=(select auth.uid()));
+drop policy if exists ege2027_dossiers_update on public.ege2027_dossiers;
+create policy ege2027_dossiers_update on public.ege2027_dossiers for update to authenticated
+ using(owner_id=(select auth.uid())) with check(owner_id=(select auth.uid()));
+drop policy if exists ege2027_reviews_read on public.ege2027_reviews;
+create policy ege2027_reviews_read on public.ege2027_reviews for select to authenticated using(
+ exists(select 1 from public.ege2027_staff s where s.user_id=(select auth.uid()))
+ or exists(select 1 from public.ege2027_dossiers d where d.id=dossier_id and d.owner_id=(select auth.uid())));
+drop policy if exists ege2027_reviews_insert on public.ege2027_reviews;
+create policy ege2027_reviews_insert on public.ege2027_reviews for insert to authenticated with check(
+ staff_id=(select auth.uid()) and exists(select 1 from public.ege2027_staff s where s.user_id=(select auth.uid())));
+revoke all on public.ege2027_staff,public.ege2027_dossiers,public.ege2027_reviews from anon;
+revoke all on public.ege2027_staff,public.ege2027_dossiers,public.ege2027_reviews from authenticated;
+grant select on public.ege2027_staff to authenticated;
+grant select,insert on public.ege2027_dossiers to authenticated;
+grant update(student,payload,updated_at) on public.ege2027_dossiers to authenticated;
+grant select,insert on public.ege2027_reviews to authenticated;
+-- Pour autoriser un enseignant, faire uniquement depuis SQL après avoir vérifié son auth.users.id.
