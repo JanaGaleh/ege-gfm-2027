@@ -1,40 +1,52 @@
 # EGE GFM 2027 — application indépendante
 
-Projet pédagogique indépendant de `janagaleh.com`.
+Assistant pédagogique pour les Études de Gestion Encadrées, session 2027 à Djibouti.
+Ce dépôt est distinct de `janagaleh.com` et de `Mon Bac`.
 
-## État au 11 novembre 2026
+## État des connexions — 11 novembre 2026
 
-- **Cloudflare** : un Worker `ege-gfm-2027` est créé et son sous-domaine activé.
-- **Application publiée** : version élève HTML (travail local, recherche documentaire gratuite Wikipédia, exports Word).
-- **GitHub** : il reste à créer un dépôt **privé** `ege-gfm-2027` et à y envoyer ces fichiers.
-- **Supabase** : un projet séparé doit être créé après sélection de l'organisation et accord sur le tarif éventuel.
-- **Administration à distance** : NON ACTIVE; ne pas distribuer le fichier local d'administration comme panel sécurisé.
-- **IA avec recherche approfondie** : non configurée; ne jamais inscrire une clé API secrète dans `index.html`.
+- **GitHub** : dépôt créé, application et fichiers de configuration transférés et vérifiés.
+- **Cloudflare** : Worker `ege-gfm-2027` créé et sous-domaine `workers.dev` activé ; liaison automatique GitHub → Cloudflare encore à autoriser.
+- **Supabase** : schéma préparé dans `supabase/schema.sql`, mais **aucun nouveau projet créé et aucun SQL exécuté**.
+- **Administration à distance** : non active. Ne pas publier l'ancien panneau local comme portail administrateur sécurisé.
+- **Recherche documentaire** : recherche publique Wikipédia dans l'HTML ; le mode de rédaction IA via API sécurisée n'est pas encore configuré.
 
-## Structure
+## Fichiers
 
-- `index.html` : application élève autonome, sans connexion Supabase.
-- `scripts/deploy-cloudflare.mjs` : outil de publication du même HTML dans un Worker.
-- `.github/workflows/deployment.yml` : publication manuelle avec GitHub Actions.
-- `supabase/schema.sql` : proposition de base sécurisée par règles RLS, non appliquée.
+- `index.html` : parcours élève autonome (sauvegarde locale et export Word).
+- `scripts/deploy-cloudflare.mjs` : publication manuelle du HTML sur le Worker Cloudflare.
+- `.github/workflows/deployment.yml` : workflow de déploiement **manuel**, nécessite deux secrets GitHub.
+- `supabase/schema.sql` : base EGE isolée et politiques RLS proposées, à contrôler avant usage en production.
+- `.gitignore` : exclusion des fichiers de secrets.
 
-## Créer le dépôt GitHub
+## Connexion Cloudflare – GitHub (recommandé)
 
-1. Aller sur https://github.com/new et créer `ege-gfm-2027` en mode **Private**.
-2. Télécharger puis décompresser ce projet et envoyer son contenu dans le dépôt.
-3. Dans GitHub, Settings → Secrets and variables → Actions, définir :
-   - `CLOUDFLARE_ACCOUNT_ID` : identifiant du compte Cloudflare.
-   - `CLOUDFLARE_API_TOKEN` : jeton Cloudflare limité à l'édition des Workers.
-4. Ouvrir Actions → « Deployer EGE sur Cloudflare » → « Run workflow ».
+1. Cloudflare → **Workers & Pages** → Worker `ege-gfm-2027`.
+2. **Settings** → **Builds** → **Connect** → **GitHub**.
+3. Autoriser le dépôt `JanaGaleh/ege-gfm-2027`.
+4. Configurer un déploiement adapté au projet ; avant activation automatique, **tester une publication**.
 
-Ne mettez **jamais** vos clés secrètes dans des fichiers publics ou dans un message de conversation.
+L'alternative est le workflow GitHub Actions. Il faut alors ajouter dans
+GitHub → Settings → Secrets and variables → Actions :
+`CLOUDFLARE_API_TOKEN` (jeton de portée minimale Workers Scripts Write)
+et `CLOUDFLARE_ACCOUNT_ID`, puis lancer le workflow manuellement.
+**Ne pas inscrire ces valeurs dans le dépôt, les issues ou les conversations.**
 
-## Supabase (phase suivante)
+## Supabase (prochaine phase)
 
-Créer un projet distinct dans l'organisation choisie. Après accord sur le coût éventuel, appliquer le SQL dans le **nouveau projet uniquement** et exécuter les vérifications de sécurité. Installer ensuite une véritable connexion élève et une interface d'administration qui respecte les rôles et permissions.
+Après confirmation de l'organisation Supabase et de l'éventuel coût, créer
+un projet **distinct**. Vérifier ensuite les règles RLS du schéma, relier le
+navigateur via une clé publiable et créer un espace d'administration avec rôle sécurisé.
+**Aucune clé service_role ne doit figurer dans un fichier HTML.**
 
-**Important** : la création du schéma ne connecte pas automatiquement le HTML à Supabase. L'authentification et la synchronisation restent à développer et tester.
+## Données EGE
 
-## Respect du dossier pédagogique
+- 6 thèmes, 51 sous-thèmes du référentiel officiel.
+- Dossier Word basé sur le modèle de référence.
+- Recherche documentaire à vérifier par le candidat.
+- Aucune donnée de visite, entretien ou entreprise inventée.
 
-Le document Word conserve le gabarit pédagogique, avec validation obligatoire des sources. Ne pas inventer de données issues des visites d'entreprises.
+## Sécurité
+
+Ce dépôt a été constaté comme **public** : le rendre privé si le code doit être réservé.
+Les dossiers personnels des élèves ne doivent jamais être committés dans GitHub.
